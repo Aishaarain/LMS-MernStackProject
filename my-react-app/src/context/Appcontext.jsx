@@ -4,7 +4,8 @@ import { useState } from "react";
 import humanizeDuration from "humanize-duration";
 export const AppContext = createContext();
 import {useAuth,useUser} from '@clerk/clerk-react'
-
+import { toast } from "react-toastify";
+import axios from "axios";
 export const AppProvider = (props) => {
 
   const currency = import.meta.env.VITE_CURRENCY;
@@ -13,11 +14,37 @@ const navigate= useNavigate;
 const {getToken} = useAuth();
 const {user} = useUser()
 
+const backendURL = import.meta.env.VITE_BACKEND_URL;
   const [allCourses, setAllCourses] = useState([]);
-  const [isEducator, setIsEducator] = useState(true);
+  const [isEducator, setIsEducator] = useState(false);
   const [enrolledCourses, setEnrolledCourses] = useState([])
-//fetch all courses from backend
+  const [userData, setUserData] = useState(null);
 
+ 
+
+
+  // fetch user data
+  const fetchUserData = async () => {
+    if (user.publicMetadata.role === 'educator') {
+      setIsEducator(true);
+    }
+    try {
+      const token = await getToken();
+    const { data } = await axios.get(`${backendURL.trim()}/api/user/data`, {
+  headers: {
+    Authorization: `Bearer ${token}`
+  }
+});
+
+      if (data.success) {
+        setUserData(data.user);
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      toast.error(error.message);
+    }
+  };
 //function to calculate  average rating of course
 const CalculateRating =(course)=>{
         if (course.courseRatings.length === 0){
@@ -59,13 +86,38 @@ const calculateNoofLectures = (course)=>{
 }
 
 // fetch user enrolled courses
-const fetchUserEnrolledCourses = async()=>{
- setEnrolledCourses(dummyCourses)
-}
+ const fetchUserEnrolledCourses = async () => {
+    // setEnrolledCourses(dummyCourses.filter(course => course.enrolledStudents.includes('user_2qQlvXyr02B4Bq6hT0Gvaa5fT9V')));
+    try {
+      const token = await getToken();
+    const { data } = await axios.get(`${backendURL.trim()}/api/user/enrolled-courses`, {
+  headers: {
+    Authorization: `Bearer ${token}`
+  }
+});
+
+      if (data.success) {
+        setEnrolledCourses(data.enrolledCourses.reverse());
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      toast.error(error.message);
+    }
+  };
+
 
 const fetchAllCourses = async () => {
-setAllCourses(dummyCourses)
-}
+try{
+  const {data} =await axios.get(backendURL+ '/api/course/all')
+  if(data.success){
+    setAllCourses(data.courses)}
+    else{
+      toast.error(data.message)
+    }
+}catch(error){
+  console.error("Error fetching courses:", error.message);    
+}}
 
 useEffect(() => {
   fetchAllCourses();
@@ -78,6 +130,8 @@ const logToken = async ()=>{
 useEffect(()=>{
   if(user){
   logToken()
+  fetchUserData()
+  fetchUserEnrolledCourses()
   }
 },[user])
 
@@ -85,6 +139,7 @@ useEffect(()=>{
   const sharedState = {
 currency,allCourses,navigate,  CalculateRating,isEducator,setIsEducator,
 calculateChapterTime, calculateCourseDuration, calculateNoofLectures,enrolledCourses, fetchUserEnrolledCourses
+,backendURL,userData,setUserData,getToken
     // Define any shared state or functions here
   };
 

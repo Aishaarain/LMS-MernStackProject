@@ -3,7 +3,7 @@ import User from '../models/User.js'
 
 // API Controller Function to Manage clerk user with database
 
-const clerkWebhooks = async (req,res)=>{
+export const clerkWebhooks = async (req,res)=>{
     try{
          const whook = new Webhook(process.env.CLERK_WEBHOOK_SECRET)
          await whook.verify(JSON.stringify(req.body),{
@@ -52,4 +52,60 @@ res.json({success: false, message: error.message})
     }
 }
 
-export default clerkWebhooks
+
+
+export const stripeWebhook = async (req, res) => {
+  const WEBHOOK_SECRET = process.env.STRIPE_ENPOINT_WEBHOOK_SECRET_KEY;
+
+  if (!WEBHOOK_SECRET) {
+    throw new Error("Webhook secret needed!");
+  }
+
+  const evt = req.body;
+  // console.log(evt);
+  switch (evt.type) {
+    case "payment_intent.succeeded":
+      const paymentIntent = evt.data.object;
+      const paymentIntentId = paymentIntent.id;
+
+      const session = await Stripe.checkout.sessions.list({
+        payment_intent: paymentIntentId,
+      });
+
+      const { purchaseId } = session.data[0].metadata;
+
+      const purchaseData = await PurchaseModel.findById(purchaseId);
+      const userData = await UserModel.findById(purchaseData.userId);
+      const courseData = await CourseModel.findById(purchaseData.courseId);
+
+      courseData.enrolledStudents.push(userData._id);
+      await courseData.save();
+      userData.enrolledCourses.push(courseData._id);
+      await userData.save();
+      purchaseData.status = "completed";
+      await purchaseData.save();
+
+      break;
+
+    case "payment_intent.payment_failed":
+      const failedPaymentIntent = evt.data.object;
+      const failedPaymentIntentId = failedPaymentIntent.id;
+
+      const failedSession = Stripe.checkout.sessions.list({
+        payment_intent: failedPaymentIntentId,
+      });
+
+      const { FailedPurchaseId } = failedSession.data[0].metadata;
+      const failedPurchaseData = await PurchaseModel.findById(FailedPurchaseId);
+      failedPurchaseData.status = "failed";
+      failedPurchaseData.save();
+
+      break;
+
+    default:
+      console.log(`Unhandled event type ${evt.type}`);
+      break;
+  }
+
+  res.json({ received: true });
+};
