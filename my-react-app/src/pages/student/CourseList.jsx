@@ -1,7 +1,7 @@
 import { Link, useParams } from 'react-router-dom';
 import Searchbar from '../../components/student/SearchBar';
 import { useContext, useEffect, useState } from 'react';
-import { AppContext } from '../../context/AppContext';
+import { AppContext } from '../../../src/context/Appcontext';
 import CourseCard from '../../components/student/CourseCard';
 import { assets } from '../../assets/assets';
 import Footer from '../../components/student/Footer';

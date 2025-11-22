@@ -1,29 +1,25 @@
 import CourseModel from "../models/Course.js";
 import PurchaseModel from "../models/purchaseModel.js";
 import UserModel from "../models/User.js";
-import Stripe from "../configs/Stripe.js";
+// import Stripe from "../configs/Stripe.js";
 import CourseProgress from "../models/courseProgressModel.js";
+
 
 // get user data
 export const getUserData = async (req, res) => {
   try {
     const userId = req.auth.userId;
-
+   const user = await UserModel.findById(userId);
     // If user isn't authenticated, return a 401 error
-    if (!userId) {
-      return res.status(401).json({ error: "User not authenticated" });
-    }
-
-    const user = await UserModel.findOne({ clerkUserId: userId });
-
     if (!user) {
-      return res.status(404).json("User not found!");
+      return res.json({ success: false, message: "User not found" });
     }
+
 
     res.json({ success: true, user });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ success: false, message: "Failed to fetch users" });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -31,118 +27,70 @@ export const getUserData = async (req, res) => {
 export const userEnrolledCourses = async (req, res) => {
   try {
     const userId = req.auth.userId;
+            const userData = await UserModel.findById( userId ).populate('enrolledCourses');
+    
 
-    // If user isn't authenticated, return a 401 error
-    if (!userId) {
-      return res.status(401).json({ error: "User not authenticated" });
-    }
-
-    const user = await UserModel.findOne({ clerkUserId: userId }).populate({ path: "enrolledCourses" });
-
-    if (!user) {
-      return res.status(404).json("User not found!");
-    }
-
-    res.json({ success: true, enrolledCourses: user.enrolledCourses });
+    res.json({ success: true, enrolledCourses: userData.enrolledCourses });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ success: false, message: "Failed to fetch courses" });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
 // purchase course
-export const purchaseCourse = async (req, res) => {
+    
+export const purchaseCourse = async (req, res) => { 
   try {
     const { courseId } = req.body;
-    const { origin } = req.headers;
     const userId = req.auth.userId;
-
-    // If user isn't authenticated, return a 401 error
-    if (!userId) {
-      return res.status(401).json({ error: "User not authenticated" });
+    const { origin } = req.headers;
+    const userData = await UserModel.findById(userId);
+const courseData = await CourseModel.findById(courseId);
+    if (!userData || !courseData) {
+      return res.json({ success: false, message: "data not found" });
     }
-
-    const user = await UserModel.findOne({ clerkUserId: userId }).populate({
-      path: "enrolledCourses",
-    });
-
-    if (!user) {
-      return res.status(404).json("User not found!");
-    }
-
-    const courseData = await CourseModel.findById(courseId);
-
-    if (!courseData) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Course not found" });
-    }
-
-    const purchaseData = {
+    const purschaseData = {
       courseId: courseData._id,
-      userId: user._id,
-      amount: (
-        courseData.coursePrice -
-        (courseData.coursePrice * courseData.discount) / 100
-      ).toFixed(2),
-    };
-
-    const newPurchase = await PurchaseModel.create(purchaseData);
-
-    // Stripe payment gateway integration
-    const line_items = [
-      {
-        price_data: {
-          currency: process.env.CURRENCY.toLowerCase(),
-          product_data: {
-            name: courseData.courseTitle,
-          },
-          unit_amount: Math.floor(
-            newPurchase.amount
-          ) * 100,
-        },
-        adjustable_quantity: {
-          enabled: true,
-          minimum: 1,
-        },
-        quantity: 1,
-      },
-    ];
-
-    const params = {
-      submit_type: "pay",
-      mode: "payment",
-      payment_method_types: ["card"],
-      customer_email: user.email,
-      metadata: {
-        userId: user._id.toString(),
-        purchaseId: newPurchase._id.toString(),
-      },
-      line_items: line_items,
-      success_url: `${process.env.CLIENT_URL}/loading/my-enrollments`,
-      cancel_url: `${process.env.CLIENT_URL}/loading/cancel`,
-    };
-
-    const session = await Stripe.checkout.sessions.create(params);
-
-    if (!session.url) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Error while creating session" });
+      userId,
+      amount: (courseData.coursePrice - courseData.discount * courseData.coursePrice / 100).toFixed(2),
     }
 
-    // Save the purchase record
-    newPurchase.paymentId = session.id;
-    await newPurchase.save();
+    const newPurchase = new PurchaseModel.create(purschaseData);
 
-    res.json({ success: true, session_url: session.url });
-  } catch (error) {
-    console.error(error);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to purchase course" });
+    // stripe gateway
+const stripeInstance = new Stripe (process.env.STRIPE_SECRET_KEY);
+const currency = process.env.CURRENCY.toLowerCase()
+;
+
+// creating line items for stripe
+const line_items =[{
+price_data:{
+  currency,product_data:{
+    name: courseData.courseTitle,
+  },
+  unit_amount: Math.round (newPurchase.amount * 100),
+},
+quantity:1,
+}]
+
+const session = await stripeInstance.checkout.sessions.create({
+  success_url: `${origin}/loading/my-enrollments`,
+  cancel_url: `${origin}/`,
+  mode: 'payment',
+  line_items:line_items,
+  metadata:{
+    purchaseId: newPurchase._id.toString(),
   }
-};
+});   
+res.json({ success: true, session_url: session.url });
+  }
+catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+
 
 // update user course progress
 export const updateCourseProgress = async (req, res) => {
