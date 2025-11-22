@@ -5,7 +5,7 @@ import Loading from '../../components/student/Loading';
 const MyCourses = () => {
 
   const  {currency, allCourses} = useContext(AppContext);
-  const [courses, setCourses] = useState(null)
+  const [courses, setCourses] = useState([])
 
   const fetchEducatorCourses = async ()=>{
     setCourses(allCourses)
@@ -42,12 +42,11 @@ const MyCourses = () => {
 
       <td className="px-4 py-3">
         {currency} {Math.floor(
-          course.enrolledStudents.length *
-          (course.coursePrice - course.discount * course.coursePrice / 100)
+          course.enrolledStudents?.length *(course.coursePrice - course.discount * course.coursePrice / 100)
         )}
       </td>
 
-      <td className="px-4 py-3">{course.enrolledStudents.length}</td>
+      <td className="px-4 py-3">{course.enrolledStudents?.length || 0}</td>
 
       <td className="px-4 py-3">
         {new Date(course.createdAt).toLocaleDateString()}

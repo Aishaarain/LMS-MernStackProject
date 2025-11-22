@@ -30,11 +30,11 @@ export default function App() {
           <Route index path="student-enrolled" element={<StudentsEnroll />} />
         </Route>
 
-        <Route path="/student/course-details" element={<CourseDetails />} />
-         <Route path="/student/course-details/:id" element={<CourseDetails />} />
+        {/* <Route path="/student/course-details" element={<CourseDetails />} /> */}
+         <Route path="/student/course/:id" element={<CourseDetails />} />
         <Route path="/player/:courseId" element={<Player />} />
 
-        <Route path="/my-enrollments" element={<MyEnrollments />} />
+        <Route path="/enrolled-courses" element={<MyEnrollments />} />
 
          <Route path="/student/course-list" element={<CourseList />} />
            <Route path="/student/course-list/:input" element={<CourseList />} />

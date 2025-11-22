@@ -1,7 +1,7 @@
 import express from 'express';
 
-import { getUserData, userEnrolledCourses, purchaseCourse, updateUserCourseProgress, getCourseProgress, addCourseRating, addCourseComment } from '../controllers/userController.js';
-import { useReducer } from 'react';
+import { getUserData, userEnrolledCourses, purchaseCourse, updateUserCourseProgress, getCourseProgress, addCourseRating } from '../controllers/userController.js';
+
 
 const userRouter = express.Router();
 

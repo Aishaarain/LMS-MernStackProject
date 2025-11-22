@@ -18,30 +18,32 @@ const app = express();
 // -------------------------------
 
 // CORS (allow only frontend)
-// app.use(cors({
-//   origin: process.env.FRONTEND_URL,
-//   methods: ["GET", "POST", "PUT", "DELETE"],
-//   credentials: true
-// }));
+app.use(cors({
+  origin: true,
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true
+}));
 
 app.use(morgan('tiny'));
-
-// Clerk Auth middleware
 app.use(clerkMiddleware());
-
 // Normal JSON parsing (must come AFTER clerkMiddleware)
 app.use(express.json());
+
+
+
 
 
 
 // -------------------------------
 // API ROUTES
 // -------------------------------
-app.get('/',(req,res)=>res.send("API is running..."));
-app.post('/clerk', express.json(), clerkWebhooks);
-app.use('/api/educator', educatorRouter);
 app.use('/api/course',express.json(),courseRouter); // Stripe webhook needs raw body
 app.use('/api/user', express.json(), userRouter); // Dynamic import for ES modules
+app.get('/',(req,res)=>res.send("API is running..."));
+app.post('/clerk', express.json(), clerkWebhooks);
+
+app.use('/api/educator', educatorRouter);
+
 app.post('/stripe', express.raw({type: 'application/json'}), stripeWebhook); // Stripe webhook needs raw body
 // -------------------------------
 // INITIALIZE DATABASE + CLOUDINARY

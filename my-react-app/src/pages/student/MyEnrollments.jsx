@@ -5,25 +5,22 @@ import { Line } from "rc-progress";
 import Footer from "../../components/student/Footer";
 import { Link } from "react-router-dom";
 import axios from "axios";
+import { toast } from 'react-toastify';
 
 const MyEnrollments = () => {
 
-  const {enrolledCourses,calculateCourseDuration} = useContext(AppContext);
-
-
-const MyEnrollments = () => {
-  const { 
+  const [progressArray, setProgressArray] = useState([]);
+const { 
     enrolledCourses, 
     calculateCourseDuration, 
     calculateNoOfLectures, 
     getToken, 
     userData, 
-    fetchUserEnrolledCourse, 
+    fetchUserEnrolledCourses, 
     backendUrl 
   } = useContext(AppContext);
 
-  const [progressArray, setProgressArray] = useState([]);
-
+  
   // Fetch course progress from backend
   const getCoursesProgress = async () => {
     try {
@@ -42,18 +39,20 @@ const MyEnrollments = () => {
       );
       setProgressArray(tempProgressArray);
     } catch (error) {
-      console.error(error);
+      toast.error(error.message);
     }
   };
 
   useEffect(() => {
-    fetchUserEnrolledCourse();
+    if(userData){
+    fetchUserEnrolledCourses()}
   }, [userData]);
 
   useEffect(() => {
-    if (enrolledCourses.length > 0) getCoursesProgress();
+    if (enrolledCourses.length > 0) 
+      {getCoursesProgress();}
   }, [enrolledCourses]);
-}
+
 
   return (
     <>
