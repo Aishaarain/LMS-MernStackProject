@@ -4,7 +4,7 @@ import UserModel from "../models/User.js";
 // import Stripe from "../configs/Stripe.js";
 import CourseProgress from "../models/courseProgressModel.js";
 
-
+ 
 // get user data
 export const getUserData = async (req, res) => {
   try {
@@ -93,7 +93,7 @@ catch (error) {
 
 
 // update user course progress
-export const updateCourseProgress = async (req, res) => {
+export const updateUserCourseProgress = async (req, res) => {
   try {
     const userId = req.auth.userId;
     const { courseId, lectureId } = req.body;
@@ -115,17 +115,15 @@ export const updateCourseProgress = async (req, res) => {
     });
     if (progressData) {
       if (progressData.lectureCompleted.includes(lectureId)) {
-        // return res.json({
-        //   success: true,
-        //   message: "Lecture already completed",
-        // });
-        // remove lecture from completed list
-        progressData.lectureCompleted = progressData.lectureCompleted.filter((lecture) => lecture !== lectureId);
-        progressData.save();
-      } else {
-        progressData.lectureCompleted.push(lectureId);
-        progressData.save();
+        return res.json({
+          success: true,
+          message: "Lecture already completed",
+        });
+       
       }
+    progressData.lectureCompleted.push(lectureId);
+      await progressData.save();
+
     } else {
       const newProgressData = {
         userId: user._id,
@@ -135,7 +133,7 @@ export const updateCourseProgress = async (req, res) => {
       await CourseProgress.create(newProgressData);
     }
 
-    res.json({ success: true, message: "Course progress updated", user });
+    res.json({ success: true, message: "Course progress updated" });
   } catch (error) {
     console.error(error);
     res
@@ -166,68 +164,60 @@ export const getCourseProgress = async (req, res) => {
       courseId,
     });
 
-    // if (!progressData) {
-    //   return res.status(404).json("Course progress not found!");
-    // }
-
     res.json({ success: true, progressData });
   } catch (error) {
     console.error(error);
     res
       .status(500)
-      .json({ success: false, message: "Failed to fetch course progress" });
+      .json({ success: false, message: error.message   });
   }
 };
 
 // add user rating to course
 export const addCourseRating = async (req, res) => {
-  try {
+ 
     const userId = req.auth.userId;
     const { courseId, rating } = req.body;
 
     // If user isn't authenticated, return a 401 error
-    if (!userId) {
-      return res.status(401).json({ error: "User not authenticated" });
+    if (!userId || !courseId || !rating || rating < 1 || rating > 5) {
+      return res.json({ success:'false',message: "Invalid Details" });
     }
 
-    const user = await UserModel.findOne({ clerkUserId: userId });
+   
+ try {
+    const course = await CourseModel.findById(courseId);
 
-    if (!user || !user.enrolledCourses.includes(courseId)) {
-      return res.status(404).json("User not found or user not purchased this course!");
-    }
-
-    if (!courseId || !rating || rating < 1 || rating > 5) {
+    if (!course) {
       return res
-        .status(400)
-        .json({ success: false, message: "Invalid details" });
-    };
-
-    const courseData = await CourseModel.findById(courseId);
-
-    if (!courseData) {
-      return res
-        .status(404)
         .json({ success: false, message: "Course not found" });
     }
 
-    const existRatingIndex = courseData.courseRatings.findIndex(
-      (courseRating) => courseRating.userId.toString() === user._id.toString()
-    );
+    const user = await UserModel.findbyId( userId );
 
-    if (existRatingIndex !== -1) {
-      courseData.courseRatings[existRatingIndex].rating = rating;
-    } else {
-      courseData.courseRatings.push({ userId: user._id, rating });
+    if (!user || !user.enrolledCourses.includes(courseId)) {
+return res
+        .json({ success: false, message: "User not purchase the course" });
     }
 
-    await courseData.save();
+    const existRatingIndex = course.courseRatings.findIndex(
+      (courseRating) => courseRating.userId === userId
+    );
+
+    if (existRatingIndex > -1) {
+      course.courseRatings[existRatingIndex].rating = rating;
+    } else {
+      course.courseRatings.push({ userId, rating });
+    }
+
+    await course.save();
 
     res.json({ success: true, message: "Rating added successfully" });
   } catch (error) {
     console.error(error);
     res
       .status(500)
-      .json({ success: false, message: "Failed to add rating" });
+      .json({ success: false, message: message.error });
   }
 
 };
